@@ -134,6 +134,8 @@ var Starfield = function(speed, opacity, numStars, clear){
     this.step = function(dt){
         offset += dt * speed; 
         offset = offset % stars.height;
+        console.log('nothing')l
+       ;
     }
 }
 
