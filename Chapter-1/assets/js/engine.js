@@ -92,3 +92,70 @@ var Game = new function(){
     
 }
 
+//function to create the star field (scrolling background)
+var Starfield = function(speed, opacity, numStars, clear){
+    //create a new canvas dom element
+    var stars = document.createElement('canvas');
+    stars.width = Game.width;
+    stars.height = Game.height;
+    
+    /// get context
+    var starsCtx = stars.getContext('2d');
+    var offset = 0;
+    
+    if(clear){
+        starsCtx.fillStyle = '#000';
+        starsCtx.fillRect(0, 0, stars.width, stars.height);
+    }
+    
+    // draw random 2 px rectangles onto the offscreen canvas
+    starsCtx.fillStyle = '#fff';
+    starsCtx.globalAlpha = opacity;
+    
+    // Create all the stars in the for loop
+    for(var i=0; i<numStars; i++){
+        starsCtx.fillRect(  Math.floor(Math.random() * stars.width), 
+                            Math.floor(Math.random() * stars.height), 
+                            2, 2);
+    }
+    
+    this.draw = function(ctx){
+        var intOffset = Math.floor(offset);
+        var remaining = stars.height - intOffset;
+        
+        if(intOffset > 0){
+            ctx.drawImage(stars, 0, remaining, stars.width, intOffset, 0, 0, stars.width, intOffset);
+        }
+        if (remaining > 0){
+            ctx.drawImage(stars, 0, 0, stars.width, remaining, 0, intOffset, stars.width, remaining);
+        }
+    }
+    
+    this.step = function(dt){
+        offset += dt * speed; 
+        offset = offset % stars.height;
+    }
+}
+
+
+// function for the title sreen
+var TitleScreen = function(title, subtitle, callback){
+    this.step = function(dt){
+        if(Game.keys['fire'] && callback){
+            callback();
+        }
+    }
+    
+    this.draw = function(ctx){
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        // draw the title
+        ctx.font = 'bold, 40px bangers';
+        ctx.fillText(title, Game.width/2, Game.height/2);
+        // draw the subtitle
+        ctx.font = 'bold 20px bangers';
+        ctx.fillText(subtitle, Game.width/2, Game.height/2 + 40);
+        
+    }
+}
+
