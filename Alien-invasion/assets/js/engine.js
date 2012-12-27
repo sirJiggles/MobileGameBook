@@ -54,7 +54,7 @@ var Game = new function(){
     };
     
     // Setup the key inputs
-    var KEY_CODES = { 37:'left', 39:'right', 32:'fire'};
+    var KEY_CODES = { 37:'left', 39:'right', 32:'fire', 38:'up', 40:'down' };
     this.keys = {};
     
     this.setupInput = function(){
@@ -166,6 +166,7 @@ var PlayerShip = function(){
     this.x = Game.width / 2 - this.w / 2;
     this.y = Game.height - 10 - this.h;
     this.vx = 0;
+    this.vy = 0;
     this.maxVel = 100;
     
     this.step = function(dt){
@@ -173,8 +174,13 @@ var PlayerShip = function(){
             this.vx = -this.maxVel;
         }else if(Game.keys['right']){
             this.vx = this.maxVel;
+        }else if(Game.keys['up']){
+            this.vy = -this.maxVel;
+        }else if(Game.keys['down']){
+            this.vy = this.maxVel;
         }else{
             this.vx = 0;
+            this.vy = 0;
         }
         
         this.x += this.vx * dt;
@@ -183,6 +189,14 @@ var PlayerShip = function(){
             this.x =0;
         }else if (this.x > Game.width - this.w){
             this.x = Game.width - this.w;
+        }
+        
+        this.y += this.vy * dt;
+        
+        if (this.y < 0) {
+            this.y = 0;
+        }else if (this.y > Game.height - this.h){
+            this.y = Game.height - this.h;
         }
     }
     

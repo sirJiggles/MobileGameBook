@@ -18,6 +18,7 @@ var startGame = function(){
 
 // play game function (when fire pressed, callback)
 var playGame = function(){
+    // add the player ship to the board 
     Game.setBoard(3, new PlayerShip());
 }
 
