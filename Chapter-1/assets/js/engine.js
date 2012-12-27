@@ -159,3 +159,35 @@ var TitleScreen = function(title, subtitle, callback){
     }
 }
 
+//function for the players ship
+var PlayerShip = function(){
+    this.w = spriteSheet.map['ship'].w;
+    this.h = spriteSheet.map['ship'].h;
+    this.x = Game.width / 2 - this.w / 2;
+    this.y = Game.height - 10 - this.h;
+    this.vx = 0;
+    this.maxVel = 100;
+    
+    this.step = function(dt){
+        if(Game.keys['left']){
+            this.vx = -this.maxVel;
+        }else if(Game.keys['right']){
+            this.vx = this.maxVel;
+        }else{
+            this.vx = 0;
+        }
+        
+        this.x += this.vx * dt;
+        
+        if (this.x < 0) {
+            this.x =0;
+        }else if (this.x > Game.width - this.w){
+            this.x = Game.width - this.w;
+        }
+    }
+    
+    this.draw = function(ctx){
+        spriteSheet.draw(ctx, 'ship', this.x, this.y, 0);
+    }
+}
+

@@ -5,7 +5,7 @@ var sprites = {
 };
 
 var startGame = function(){
-    spriteSheet.draw(Game.ctx, 'ship', 100, 100, 0);
+    //spriteSheet.draw(Game.ctx, 'ship', 100, 100, 0);
     
     // Add the starfield boards to the game
     Game.setBoard(0, new Starfield(20, 0.4, 100, true));
@@ -18,7 +18,7 @@ var startGame = function(){
 
 // play game function (when fire pressed, callback)
 var playGame = function(){
-    Game.setBoard(3, new TitleScreen('Gareth Rocks!', 'Game begun'));
+    Game.setBoard(3, new PlayerShip());
 }
 
 window.addEventListener('load', function(){
