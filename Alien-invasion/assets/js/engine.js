@@ -1,3 +1,11 @@
+// Define the different types of objects (these are to the power of 2 for efficiency
+// to allow us to use bitwise operations)
+var OBJECT_PLAYER = 1,
+    OBJECT_PLAYER_MISSILE = 2,
+    OBJECT_ENEMY = 3,
+    OBJECT_ENEMY_MISSILE = 4,
+    OBJECT_POWERUP = 5;
+
 // function to load and draw the spritesheet
 var SpriteSheet = new function(){
     
@@ -79,7 +87,7 @@ var Game = new function(){
         for(var i = 0, len = boards.length; i < len; i++){
             if(boards[i]){
                 boards[i].step(dt);
-                boards[i] && boards[i].draw(Game.ctx);
+                boards[i].draw(Game.ctx);
             }
         }
         setTimeout(Game.loop, 30);
@@ -110,6 +118,18 @@ Sprite.prototype.merge = function(props){
             this[prop] = props[prop];
         }
     }
+}
+
+// Hit function for the sprites
+Sprite.prototype.hit = function(damage){
+    this.health -= damage;
+    if(this.health <= 0){
+        if(!this.board.remove(this)){
+            // add an explosion to the board centered at the point we removed the item
+            this.board.add(new Explosion(this.x + this.w/2, this.y + this.h/2));
+        }
+    }
+    
 }
 
 // Draw meths for the sprite function
@@ -194,7 +214,7 @@ var TitleScreen = function(title, subtitle, callback){
 var PlayerShip = function(){
     
     // call the setup methods in the sprite class (extended)
-    this.setup('ship', {vx:0, vy:0, frame:0, reloadTime: 0.25, maxVel: 100});
+    this.setup('ship', {vx:0, vy:0, reloadTime: 0.25, maxVel: 100});
     
     this.x = Game.width / 2 - this.w / 2;
     this.y = Game.height - 10 - this.h;
@@ -253,11 +273,22 @@ var PlayerShip = function(){
 
 // Extend the sprite class here
 PlayerShip.prototype = new Sprite();
+PlayerShip.prototype.type = OBJECT_PLAYER;
+
+//extend the existing hit function from sprite
+PlayerShip.prototype.hit = function(damage){
+    // if removed
+    if(!this.board.remove(this)){
+        loseGame();
+    }
+}
 
 
 // Game board, responsible for keeping track of objects on the board and collisions
 var GameBoard = function(){
-
+    
+    var board = this;
+    
     // current objects
     this.objects = [];
     this.cnt = [];
@@ -279,7 +310,7 @@ var GameBoard = function(){
     this.remove = function(obj){
         // check of the object to be removed is in the list if not add it
         var wasStillAlive = this.removed.indexOf(obj) != -1;
-        if (wasStillAlive){
+        if (!wasStillAlive){
             this.removed.push(obj);
         }
         return wasStillAlive;
@@ -317,7 +348,11 @@ var GameBoard = function(){
     
     // Detect function, find the first object for which func is returned as true
     this.detect = function(funcName){
+        // for all the objects in the object list (on the board)
         for (var i=0,val=null,len=this.objects.length;i<len;i++){
+            // run call (in built to JS) to call the function passed
+            // by using call we change the ref to this to be what we pass in as the arg
+            // if result of that call was true return the item that made it true
             if(funcName.call(this.objects[i])){
                 return this.objects[i];
             }
@@ -349,21 +384,27 @@ var GameBoard = function(){
     }
     
     // Now the function to check for collision
-    this.collide = function(obj, type){
-        // return true if this instance collides with any other obj
+    this.collide = function(obj, typeToColideWith){
+        // detect will run the following function for each element on the board
+        // and return true for the the first one it finds to be true
         return this.detect(function(){
+            // if the object we are looking at is not the one that called detect colision
             if(obj != this){
-                // collision = if (!type sent OR this.type == type (bitwise and) ) AND overlap call returns true for obj and this
-                var col = (!type || this.type & type) && board.overlap(obj, this);
-                //if colision true return this else false
+                // col = if(typePassed not set OR the type of obj currently being looked at is the 
+                // same as the one we want to check for collisions against  AND there is an overlap
+                // between the object that called collsion check and the current obj we are looking at then col is true
+                // in which case we return the obj that collided with our object (more than likely so we can remove it)
+                var col = (!typeToColideWith || this.type == typeToColideWith) && board.overlap(obj, this);
+                //if col true return this else return false
                 return col ? this : false;
             }
         })
     }
 };
 
+// Player missile class
 var PlayerMissile = function(x,y){
-    this.setup('missile', {vy:-700});
+    this.setup('missile', {vy:-700, damage:10});
     // Center the missile on x (middle)
     this.x = x - this.w/2;
     // y is passed in y - the height of the missle so, bottom of the missle
@@ -371,18 +412,27 @@ var PlayerMissile = function(x,y){
 };
 
 PlayerMissile.prototype = new Sprite();
+PlayerMissile.prototype.type = OBJECT_PLAYER_MISSILE;
 
 // Step and draw done with prototype because this is faster
 PlayerMissile.prototype.step = function(dt){
     this.y += this.vy * dt;
-    if(this.y < -this.h){
+    // collision is true if this object overlaps with objects of type ENEMY
+    var collision = this.board.collide(this, OBJECT_ENEMY);
+    if (collision){
+        // run the hit method that the object will have via Sprite extension
+        collision.hit(this.damage);
+        //remove the missile
+        this.board.remove(this);
+    }
+    else if(this.y < -this.h){
         this.board.remove(this);
     }
 }
 
 
 
-// Enemy function, this again will use prototype for step and draw as it is faster
+// Enemy class, this again will use prototype for step and draw as it is faster
 var Enemy = function(blueprint, override){
     
     this.merge(this.baseParams);
@@ -392,15 +442,25 @@ var Enemy = function(blueprint, override){
 
 // extend sprite
 Enemy.prototype = new Sprite();
+Enemy.prototype.type = OBJECT_ENEMY;
 
 // set a property baseParams with some base params for the enemy class
 // used in sprite merge in the constructor for this class creating here prevents
 // the need to create the object for each enemy obj
-Enemy.prototype.baseParams = {A:0, B:0, C:0, D:0,E:0, F:0, G:0, H:0, t:0};
+Enemy.prototype.baseParams = {A:0, B:0, C:0, D:0,E:0, F:0, G:0, H:0, t:0, damage:10};
 
 // Step method for enemy
 Enemy.prototype.step = function(dt){
     this.t = dt;
+    
+    // detect if collision with player ship
+    var collision = this.board.collide(this, OBJECT_PLAYER);
+    if (collision){
+        // run the hit method that the object will have via Sprite extension
+        collision.hit(this.damage);
+        //remove the missile
+        this.board.remove(this);
+    }
     // calculation to move the enemy (use sin to create nice arc movements)
     this.vx = this.A + this.B * Math.sin(this.C * this.t + this.D);
     this.vy = this.E + this.F * Math.sin(this.G * this.t + this.H);
@@ -411,3 +471,86 @@ Enemy.prototype.step = function(dt){
         this.board.remove(this);
     }
 }
+
+//The explosion class
+var Explosion = function(x, y){
+    this.setup('explosion', {frame:0});
+    // move position to top left corner
+    this.x = x -this.w/2;
+    this.y = y - this.h/2;
+    this.subFrame = 0;
+}
+// Extend the sprite class
+Explosion.prototype = new Sprite();
+
+Explosion.prototype.step = function(dt){
+    this.frame = Math.floor(this.subFrame++);
+    if(this.subFrame > 36){
+        this.board.remove(this);
+    }
+}
+
+
+// Level class
+var Level = function(levelData, callback){
+    this.levelData = [];
+    for(var i=0; i<levelData.length; i++){
+        this.levelData.push(Object.create(levelData[i]));
+    }
+    this.t = 0;
+    this.callback = callback;
+}
+
+// Step method for the level, this is going to keep track of time and drop 
+// enemies onto that page when required
+Level.prototype.step = function(dt){
+    var idx = 0, remove = [], curShip = null;
+    
+    //update the current time offset
+    this.t += dt * 1000;
+    
+    // SAMPLE DATA
+    /*
+     start,  End,   Gap, Type,   Override
+    [18200,   20000, 500, 'straight', {x:150}],
+    [22000,   25000, 400, 'wiggle', {x:300}], 
+     */
+    
+    // curShip = next index in lvl data, && curship[start] < time + 2000
+    while( (curShip = this.levelData[idx]) && (curShip[0] < this.t + 2000) ){
+        // check if past the end time
+        if(this.t > curShip[1]){
+            remove.push(curShip);
+        //else if curShip[start] less than time
+        }else if(curShip[0] < this.t){
+            // Get enemy definition blueprint
+            var enemy = enemies[curShip[3]];
+            var override = curShip[4];
+            // Add enemy with blueprint and override
+            this.board.add(new Enemy(enemy, override));
+            //Increment the start time by the gap
+            curShip[0] += curShip[2];
+        }
+        idx ++;
+    }
+    
+    // Remove any objects from the level data that have passed
+    for(var i = 0, len=remove.length;i<len;i++){
+        var idx = this.levelData.indexOf(remove[i]);
+        if(idx != -1){
+            this.levelData.splice(idx, 1);
+        }
+    }
+    
+    // If there are no more enemies on the board the level is done
+    if(this.levelData.length == 0 && this.board.cnt[OBJECT_ENEMY] == 0){
+        if(this.callback){
+            this.callback();
+        }
+    }
+}
+
+Level.prototype.draw = function(ctx){
+    // do nothing
+}
+
