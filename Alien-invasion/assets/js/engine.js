@@ -19,7 +19,9 @@ var SpriteSheet = new function(){
     };
     
     this.draw = function(ctx, sprite, x, y, frame){
+        
         var s = this.map[sprite];
+
         if(!frame){
             frame = 0;
         }
@@ -32,6 +34,7 @@ var SpriteSheet = new function(){
                         y,
                         s.w,
                         s.h);
+                        
     };
 }
 
@@ -44,18 +47,26 @@ var Game = new function(){
         this.canvas = document.getElementById(canvasId);
         this.width = this.canvas.width;
         this.height = this.canvas.height;
+        this.playerOffset = 10;
+        this.canvasMultiplier = 1;
+        this.mobile = false;
+        this.points = 0;
+        
+        this.setupMobile();
         
         // setup the context
         this.ctx = this.canvas.getContext && this.canvas.getContext('2d');
         
         if(!this.ctx){
-            return alert('browser does not support canvas 2D');
+            return alert('browser does not support canvas 2D, get with it man');
         }
         // set up the input
         this.setupInput();
         
-        // Add the touch controls
-        this.setBoard(4, new TouchControls());
+        if(this.mobile){
+            // Add the touch controls
+            this.setBoard(4, new TouchControls());
+        }
         
         // start the game loop
         this.loop();
@@ -109,6 +120,60 @@ var Game = new function(){
         boards[num] = board;
     };
     
+    // Settup the game for mobile
+    this.setupMobile = function(){
+        var container = document.getElementById('container');
+        // boolean for touch support
+        var hasTouch = !!('ontouchstart' in window);
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        
+        if(hasTouch){this.mobile = true;}
+        
+        // exit if large res
+        if(screen.width >= 1280 || !hasTouch){return false;}
+        
+        // handle landsape 
+        if(w > h){
+            alert('please rotate the device then click ok');
+            w = window.innerWidth;
+            h = window.innerHeight;
+        }
+        
+        //set the height of the container to be the height of the window * 2
+        // this will allow for removal of the address bar
+        //container.style.height = h*2 + 'px';
+        
+        // scroll a little to force the removal of the address bar
+        //window.scrollTo(0, 1);
+        //h = window.outerHeight + 2;
+        
+        //set the container to now be the same height as the window
+        container.style.height = h + 'px';
+        container.style.width = w+'px';
+        container.style.padding = 0;
+        
+        // you can set the css attribute height and width of the canvas element seperate
+        // from the tags dimensions this enables you to scale it up without increasing the amount
+        // of pixels, only downside is that pixels become larger
+        if(h >= this.canvas.height * 1.75){
+            this.canvasMultiplier = 2;
+            //this.canvas.width = w/2;
+            //this.canvas.height = h/2;
+            this.canvas.style.width = w + 'px';
+            this.canvas.style.height = h + 'px';
+        }else{
+            this.canvas.width = w;
+            this.canvas.height = h;
+        }
+        
+        // set canvas element to be position abs top and left
+        this.canvas.style.position = 'absolute';
+        this.canvas.style.left = '0px';
+        this.canvas.style.right = '0px';
+        
+    }
+    
 }
 
 //Sprite function (empty because each sprite has its own constructor function)
@@ -120,6 +185,7 @@ Sprite.prototype.setup = function(sprite, props){
     this.frame = this.frame || 0;
     this.w = SpriteSheet.map[this.sprite].w;
     this.h = SpriteSheet.map[this.sprite].h;
+    
 }
 
 // merge method used in setup method on sprite function
@@ -136,6 +202,7 @@ Sprite.prototype.hit = function(damage){
     this.health -= damage;
     if(this.health <= 0){
         if(!this.board.remove(this)){
+            Game.points += this.points || 100;
             // add an explosion to the board centered at the point we removed the item
             this.board.add(new Explosion(this.x + this.w/2, this.y + this.h/2));
         }
@@ -228,7 +295,7 @@ var PlayerShip = function(){
     this.setup('ship', {vx:0, vy:0, reloadTime: 0.25, maxVel: 100});
     
     this.x = Game.width / 2 - this.w / 2;
-    this.y = Game.height - 10 - this.h;
+    this.y = Game.height - Game.playerOffset - this.h;
     
     // time left before reload (set to 0.25 to prevent fire when the game starts)
     this.reload = this.reloadTime;
@@ -458,7 +525,7 @@ Enemy.prototype.type = OBJECT_ENEMY;
 // set a property baseParams with some base params for the enemy class
 // used in sprite merge in the constructor for this class creating here prevents
 // the need to create the object for each enemy obj
-Enemy.prototype.baseParams = {A:0, B:0, C:0, D:0,E:0, F:0, G:0, H:0, t:0, damage:10};
+Enemy.prototype.baseParams = {A:0, B:0, C:0, D:0,E:0, F:0, G:0, H:0, t:0, damage:10, firePercentage:0.01, reloadTime: 0.75, reload:0};
 
 // Step method for enemy
 Enemy.prototype.step = function(dt){
@@ -477,6 +544,21 @@ Enemy.prototype.step = function(dt){
     this.vy = this.E + this.F * Math.sin(this.G * this.t + this.H);
     this.x += this.vx * dt;
     this.y += this.vy * dt;
+    
+    
+    // Fireing capabilities of the enemies
+    if(this.reload < 0 && Math.random() < this.firePercentage){
+        this.reload = this.reloadTime;
+        
+        //if(this.missiles == 2){
+        //    this.board.add(new EnemyMissile(this.x+this.w-2, this.y+this.h/2));
+        //    this.board.add(new EnemyMissile(this.x+2, this.y+this/2));
+        //}else{
+            this.board.add(new EnemyMissile(this.x+this.w/2, this.y+this.h));
+        //}
+    }
+    this.reload -= dt;
+    
     //if off the board, remove
     if(this.y > Game.height || this.x < -this.w || this.x > Game.width){
         this.board.remove(this);
@@ -488,18 +570,21 @@ var Explosion = function(x, y){
     this.setup('explosion', {frame:0});
     // move position to top left corner
     this.x = x -this.w/2;
-    this.y = y - this.h/2;
+    this.y = y -this.h/2;
     this.subFrame = 0;
 }
 // Extend the sprite class
 Explosion.prototype = new Sprite();
 
 Explosion.prototype.step = function(dt){
-    this.frame = Math.floor(this.subFrame++);
-    if(this.subFrame > 36){
+
+    if(this.frame <= 11){
+        this.frame = Math.floor(this.subFrame++);
+    }else{
         this.board.remove(this);
     }
 }
+
 
 
 // Level class
@@ -628,7 +713,7 @@ var TouchControls = function(){
         for(var i=0;i<e.targetTouches.length;i++){
             touch = e.targetTouches[i];
             x = touch.pageX / Game.canvasMultiplier - Game.canvas.offsetLeft;
-            console.log(x);
+
             if(x < unitWidth){
                 Game.keys['left'] = true;
             }
@@ -658,4 +743,62 @@ var TouchControls = function(){
     Game.canvas.addEventListener('touchmove', this.trackTouch, true);
     Game.canvas.addEventListener('touchend', this.trackTouch, true);
     Game.playerOffset = unitWidth + 20;
+}
+
+// Adding a score to the board
+var Score = function(){
+    Game.points = 0;
+    var pointsLength = 8;
+    
+    this.draw = function(ctx){
+        
+        ctx.save();
+        ctx.font = 'bold 18px arial';
+        ctx.fillStyle = '#FFF';
+        
+        var txt = ''+Game.points;        
+        var i = pointsLength - txt.length;
+        var zeros = '';
+        
+        // add all the zeros (onto the end of the score)
+        while(i-- > 0){
+            zeros += '0';
+        }
+        
+        ctx.fillText(zeros + txt, 10, 20);
+        
+        ctx.restore();
+    }
+    
+    this.step = function(dt){ 
+        //do nothing 
+    }
+}
+
+// Enemy missiles
+var EnemyMissile = function (x, y){
+    this.setup('enemy_missile', {vy:200, damage:10});
+    this.x = x-this.w/2;
+    this.y = y;
+};
+
+//Extend sprite
+EnemyMissile.prototype = new Sprite();
+// Set the type property
+EnemyMissile.prototype.type = OBJECT_ENEMY_MISSILE;
+
+// Enemy missile step method
+EnemyMissile.prototype.step = function(dt){
+    this.y += this.vy * dt;
+    
+    var collision = this.board.collide(this, OBJECT_PLAYER);
+    if (collision){
+        // run the hit method that the object will have via Sprite extension
+        collision.hit(this.damage);
+        //remove the missile
+        this.board.remove(this);
+    }
+    else if(this.y > Game.height){
+        this.board.remove(this);
+    }
 }
