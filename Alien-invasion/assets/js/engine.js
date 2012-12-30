@@ -54,6 +54,9 @@ var Game = new function(){
         // set up the input
         this.setupInput();
         
+        // Add the touch controls
+        this.setBoard(4, new TouchControls());
+        
         // start the game loop
         this.loop();
         
@@ -562,3 +565,97 @@ Level.prototype.draw = function(ctx){
     // do nothing
 }
 
+// Touch screen controls class
+var TouchControls = function(){
+    var gutterWidth = 10;
+    var unitWidth = Game.width / 5;
+    var blockWidth = unitWidth - gutterWidth;
+    
+    this.drawSquare = function(ctx, x, y, txt, on){
+        // if on is true the button has less opacity (being pressed)
+        ctx.globalAlpha = on ? 0.9 : 0.6;
+        ctx.fillStyle = '#CCC';
+        // draw the rectagle for the button
+        ctx.fillRect(x, y, blockWidth, blockWidth);
+        
+        // draw the text on the button (arrows)
+        ctx.fillStyle = '#FFF';
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 1.0;
+        ctx.font = 'bold '+ (3*unitWidth/4) + 'px arial';
+
+        ctx.fillText(txt, x+blockWidth/2, y + blockWidth - 12);
+
+    }
+    
+    this.draw = function(ctx){
+        // save the context (prevent the opacity changes effecting the context elsewhere)
+        ctx.save();
+        
+        // Y location to start buttons is unitwidth from the bottom
+        var yLoc = Game.height - unitWidth;
+        
+        // Draw the left arrow for touch screen
+        this.drawSquare(ctx, gutterWidth, yLoc, '\u25C0', Game.keys['left']);
+        
+        // Draw the right button
+        this.drawSquare(ctx, unitWidth + gutterWidth, yLoc, '\u25B6', Game.keys['right']);
+        
+        // Draw the fire button
+        this.drawSquare(ctx, 4*unitWidth, yLoc, '\u25A9', Game.keys['fire']);
+        
+        // restore the context (prevent the opacity changes effecting the context elsewhere)
+        ctx.restore();
+    }
+    
+    this.step = function(dt){
+        // do nothing
+    }
+    
+    // Add the actual touch detection
+    this.trackTouch = function(e){
+        var touch, x;
+
+        // get event and prevent default
+        if(!e){e = window.event;}
+        e.preventDefault();
+        
+        // set the left and right keys to false
+        Game.keys['left'] = false;
+        Game.keys['right'] = false;
+        
+        //for all the touches that are going on
+        for(var i=0;i<e.targetTouches.length;i++){
+            touch = e.targetTouches[i];
+            x = touch.pageX / Game.canvasMultiplier - Game.canvas.offsetLeft;
+            console.log(x);
+            if(x < unitWidth){
+                Game.keys['left'] = true;
+            }
+            if(x > unitWidth && x < 2*unitWidth){
+                Game.keys['right'] = true;
+            }   
+        }
+        
+        // if it is a touch start or end only (enabling us to set fire to true constantly until the
+        // finger is removed / started , only then do we action if it is on or off 
+        if(e.type == 'touchstart' || e.type == 'touchend'){
+            for(var i=0;i<e.changedTouches.length;i++){
+                // get the touch event
+                touch = e.changedTouches[i];
+                x = touch.pageX / Game.canvasMultiplier - Game.canvas.offsetLeft;
+                
+                //if we are in the last col of the page
+                if(x > 4*unitWidth){
+                    // only set to fire if the event is start not end
+                    Game.keys['fire'] = (e.type == 'touchstart');
+                }   
+            }
+        }
+    }
+    
+    Game.canvas.addEventListener('touchstart', this.trackTouch, true);
+    Game.canvas.addEventListener('touchmove', this.trackTouch, true);
+    Game.canvas.addEventListener('touchend', this.trackTouch, true);
+    Game.playerOffset = unitWidth + 20;
+}

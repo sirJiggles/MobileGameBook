@@ -47,8 +47,6 @@ var startGame = function(){
 // play game function (when fire pressed, callback)
 var playGame = function(){
     var board = new GameBoard();
-    //board.add(new Enemy(enemies.straight));
-    //board.add(new Enemy(enemies.wiggle, {x:150}));
     // add new level to the board with the callback
     board.add(new Level(level1, winGame));
     board.add(new PlayerShip());
