@@ -571,15 +571,13 @@ var Explosion = function(x, y){
     // move position to top left corner
     this.x = x -this.w/2;
     this.y = y -this.h/2;
-    this.subFrame = 0;
 }
 // Extend the sprite class
 Explosion.prototype = new Sprite();
 
 Explosion.prototype.step = function(dt){
-
-    if(this.frame <= 11){
-        this.frame = Math.floor(this.subFrame++);
+    if(this.frame <= 10){
+        this.frame ++;
     }else{
         this.board.remove(this);
     }
