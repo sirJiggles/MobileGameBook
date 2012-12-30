@@ -60,7 +60,7 @@ var winGame = function(){
 }
 
 var loseGame = function(){
-    Game.setBoard(3, new TitleScreen('You Loose', 'press space to try again', playGame));
+    Game.setBoard(3, new TitleScreen('You Lose', 'press space to try again', playGame));
 }
 
 window.addEventListener('load', function(){
