@@ -1,11 +1,12 @@
 
+
 /* GAME STYLES */
 #container{
     margin:0 auto;
     padding:50px 0 0 0;
-    width:320px;
+    width:480px;
 }
 
 canvas{
-    background-color:black;
+    background-color:green;
 }
