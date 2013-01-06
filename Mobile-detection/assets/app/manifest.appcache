@@ -1,0 +1,19 @@
+CACHE MANIFEST
+# Version:1
+# Remember to update the version when you change a file
+
+CACHE
+# Files that we need to cache for offline play
+index.html
+assets/js/*
+assets/img/*
+assets/css/*
+
+NETWORK
+# Resources that should be avaliable only when online for example:
+# /gameFiles/high-scores.php
+
+FALLBACK
+# Resources that should have fallback version when device offline order is
+# online resource first followed by offline resource an example:
+# /gameFiles/ad.php /gameFiles/static-ad.html
